@@ -342,3 +342,11 @@ ALERT_HEX = {
     'red': '#E74C3C',
     'overdue': '#8E44AD',
 }
+
+ALERT_BG_HEX = {
+    'green':   '#1A3D2B',
+    'yellow':  '#3D3910',
+    'orange':  '#3D2710',
+    'red':     '#3D1010',
+    'overdue': '#2D1040',
+}
