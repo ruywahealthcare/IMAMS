@@ -1,12 +1,22 @@
 import sqlite3
 import hashlib
 import os
+import sys
 import shutil
 import datetime
 from pathlib import Path
 
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "imams.db")
+def _data_dir():
+    """Return the directory where persistent files (DB, backups) should live.
+    When frozen by PyInstaller (--onefile or --onedir) use the exe's directory
+    so data survives across runs.  In normal Python use the script directory."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+DB_PATH = os.path.join(_data_dir(), "imams.db")
 
 
 def get_connection():
@@ -167,7 +177,7 @@ def init_database():
         ('contact', '+91-XXXXXXXXXX'),
         ('version', '1.0.0'),
         ('splash_duration', '4'),
-        ('backup_location', os.path.join(os.path.dirname(__file__), 'backups')),
+        ('backup_location', os.path.join(_data_dir(), 'backups')),
         ('theme', 'dark'),
         ('auto_backup', '1'),
     ]
