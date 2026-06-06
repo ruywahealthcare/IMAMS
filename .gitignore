@@ -1,0 +1,24 @@
+# Python
+  __pycache__/
+  *.pyc
+  *.pyo
+  *.pyd
+  .pythonlibs/
+  venv/
+  .venv/
+  dist/
+  build/
+  *.spec.bak
+
+  # Database (do not commit live data)
+  imams/imams.db
+  imams/imams_backup_*/
+
+  # OS
+  .DS_Store
+  Thumbs.db
+
+  # IDE
+  .vscode/
+  .idea/
+  
