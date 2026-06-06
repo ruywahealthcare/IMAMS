@@ -153,14 +153,14 @@ def init_database():
         c.execute("INSERT OR IGNORE INTO rules (rule_key, rule_value, description) VALUES (?,?,?)",
                   (key, val, desc))
 
-    # Migrate stale institute name left by older builds
-    c.execute("""UPDATE app_settings SET value='RUYWA Battalion'
+    # Migrate stale or incorrectly-cased institute name
+    c.execute("""UPDATE app_settings SET value='RUYWA BATTALION'
                  WHERE key='institute_name'
-                 AND (value LIKE '%IMAMS%' OR value='RUYWA Batallion')""")
+                 AND value != 'RUYWA BATTALION'""")
 
     # Default app settings
     defaults = [
-        ('institute_name', 'RUYWA Battalion'),
+        ('institute_name', 'RUYWA BATTALION'),
         ('unit_name', 'HQ Unit'),
         ('org_name', 'Organisation'),
         ('address', 'Address Line 1, City'),
