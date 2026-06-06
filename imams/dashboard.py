@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from utils import get_dashboard_summary, search_individuals, compute_individual_status, ALERT_HEX, TEST_TYPES
+from utils import get_dashboard_summary, search_individuals, compute_individual_status, ALERT_HEX, ALERT_BG_HEX, TEST_TYPES
 import database as db
 
 
@@ -190,7 +190,7 @@ class DashboardPage(ctk.CTkFrame):
             alert = status['overall_alert']
             color = ALERT_COLORS.get(alert, '#888')
 
-            row = ctk.CTkFrame(self.scroll, fg_color=color + "18", corner_radius=6)
+            row = ctk.CTkFrame(self.scroll, fg_color=ALERT_BG_HEX.get(alert, '#1A2A3A'), corner_radius=6)
             row.pack(fill="x", pady=2)
 
             state_txt = "Completed" if status['monitoring_complete'] else "Active"
