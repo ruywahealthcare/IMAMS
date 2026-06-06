@@ -180,11 +180,15 @@ class SettingsPage(ctk.CTkFrame):
 
         ctk.CTkLabel(scroll, text="Backup Location",
                      font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(15, 4))
-        self.backup_dir_var = ctk.StringVar(
-            value=db.get_setting('backup_location', os.path.join(os.path.dirname(__file__), 'backups')))
+        ctk.CTkLabel(scroll, text="Choose a folder. A timestamped .db file is created inside it.",
+                     text_color="#888888", font=ctk.CTkFont(size=11)).pack(anchor="w", padx=10)
+        current_dir = db.get_setting('backup_location',
+                                     os.path.join(os.path.dirname(__file__), 'backups'))
         row = ctk.CTkFrame(scroll, fg_color="transparent")
-        row.pack(fill="x", padx=10)
-        ctk.CTkEntry(row, textvariable=self.backup_dir_var, width=400).pack(side="left", padx=5)
+        row.pack(fill="x", padx=10, pady=(4, 0))
+        self.backup_dir_entry = ctk.CTkEntry(row, width=400)
+        self.backup_dir_entry.pack(side="left", padx=5)
+        self.backup_dir_entry.insert(0, current_dir)
         ctk.CTkButton(row, text="Browse", width=80,
                       command=self._browse_backup_dir).pack(side="left")
 
@@ -203,13 +207,28 @@ class SettingsPage(ctk.CTkFrame):
                       command=self._do_restore).pack(anchor="w", padx=10, pady=10)
 
     def _browse_backup_dir(self):
-        d = filedialog.askdirectory()
+        d = filedialog.askdirectory(title="Select Backup Folder")
         if d:
-            self.backup_dir_var.set(d)
+            self.backup_dir_entry.delete(0, "end")
+            self.backup_dir_entry.insert(0, d)
             db.set_setting('backup_location', d)
 
     def _do_backup(self):
-        backup_dir = self.backup_dir_var.get()
+        backup_dir = self.backup_dir_entry.get().strip()
+        if not backup_dir:
+            messagebox.showerror("Error", "Please choose a backup folder first.")
+            return
+        # If a file path was entered by mistake, use its parent folder
+        if os.path.splitext(backup_dir)[1]:
+            backup_dir = os.path.dirname(backup_dir)
+        try:
+            os.makedirs(backup_dir, exist_ok=True)
+        except OSError as e:
+            messagebox.showerror("Error", f"Cannot use that folder:\n{e}")
+            return
+        db.set_setting('backup_location', backup_dir)
+        self.backup_dir_entry.delete(0, "end")
+        self.backup_dir_entry.insert(0, backup_dir)
         dest = db.backup_database(backup_dir)
         db.log_audit(self.current_user['username'], "Backup", f"Saved to: {dest}")
         messagebox.showinfo("Backup Complete", f"Backup saved:\n{dest}")
