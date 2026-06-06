@@ -14,6 +14,15 @@ from PIL import Image, ImageTk
 # ── Ensure local imports work ──
 sys.path.insert(0, os.path.dirname(__file__))
 
+def _asset_dir():
+    """Return the directory containing bundled read-only assets (images etc.).
+    When frozen by PyInstaller, assets are extracted to sys._MEIPASS.
+    In normal Python use the script directory."""
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 import database as db
 from database import get_setting, get_appearance, set_appearance, log_audit
 from dashboard import DashboardPage
@@ -33,7 +42,7 @@ from settings import SettingsPage
 
 def _load_crest_ctk(size=(160, 160)):
     """Load the battalion crest as a CTkImage (HiDPI-safe)."""
-    crest_path = os.path.join(os.path.dirname(__file__), 'images', 'Crest.png')
+    crest_path = os.path.join(_asset_dir(), 'images', 'Crest.png')
     if os.path.exists(crest_path):
         img = Image.open(crest_path).convert("RGBA").resize(size, Image.LANCZOS)
         return ctk.CTkImage(light_image=img, dark_image=img, size=size)
@@ -42,7 +51,7 @@ def _load_crest_ctk(size=(160, 160)):
 
 def _load_crest_photo(size=(140, 140)):
     """Load crest as PhotoImage (fallback for non-CTkLabel use)."""
-    crest_path = os.path.join(os.path.dirname(__file__), 'images', 'Crest.png')
+    crest_path = os.path.join(_asset_dir(), 'images', 'Crest.png')
     if os.path.exists(crest_path):
         img = Image.open(crest_path).convert("RGBA").resize(size, Image.LANCZOS)
         return ImageTk.PhotoImage(img)
