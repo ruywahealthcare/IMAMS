@@ -9,7 +9,7 @@ import threading
 import datetime
 import customtkinter as ctk
 from tkinter import messagebox
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk
 
 # ── Ensure local imports work ──
 sys.path.insert(0, os.path.dirname(__file__))
@@ -31,28 +31,22 @@ from settings import SettingsPage
 #  SPLASH SCREEN
 # ─────────────────────────────────────────────────────────────
 
-def _make_tricolor_image(width=200, height=140):
-    """Draw Indian tricolor flag as a PIL Image."""
-    img = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(img)
-    stripe = height // 3
-    draw.rectangle([0, 0, width, stripe], fill="#FF9933")
-    draw.rectangle([0, stripe, width, stripe * 2], fill="#FFFFFF")
-    draw.rectangle([0, stripe * 2, width, height], fill="#138808")
-    # Ashoka Chakra (simple circle representation)
-    cx, cy = width // 2, height // 2
-    r = min(stripe // 2, 20)
-    draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline="#000080", width=2)
-    spoke_r = r - 4
-    import math
-    for i in range(24):
-        angle = math.radians(i * 15)
-        x1 = cx + int(4 * math.cos(angle))
-        y1 = cy + int(4 * math.sin(angle))
-        x2 = cx + int(spoke_r * math.cos(angle))
-        y2 = cy + int(spoke_r * math.sin(angle))
-        draw.line([x1, y1, x2, y2], fill="#000080", width=1)
-    return img
+def _load_crest_ctk(size=(160, 160)):
+    """Load the battalion crest as a CTkImage (HiDPI-safe)."""
+    crest_path = os.path.join(os.path.dirname(__file__), 'images', 'Crest.png')
+    if os.path.exists(crest_path):
+        img = Image.open(crest_path).convert("RGBA").resize(size, Image.LANCZOS)
+        return ctk.CTkImage(light_image=img, dark_image=img, size=size)
+    return None
+
+
+def _load_crest_photo(size=(140, 140)):
+    """Load crest as PhotoImage (fallback for non-CTkLabel use)."""
+    crest_path = os.path.join(os.path.dirname(__file__), 'images', 'Crest.png')
+    if os.path.exists(crest_path):
+        img = Image.open(crest_path).convert("RGBA").resize(size, Image.LANCZOS)
+        return ImageTk.PhotoImage(img)
+    return None
 
 
 class SplashScreen(ctk.CTk):
@@ -78,14 +72,16 @@ class SplashScreen(ctk.CTk):
         inner = ctk.CTkFrame(border, fg_color=bg_color, corner_radius=0)
         inner.place(x=3, y=3, relwidth=1, relheight=1)
 
-        institute = get_setting('institute_name', 'RUYWA Batallion')
+        institute = get_setting('institute_name', 'RUYWA Battalion')
         version = get_setting('version', '1.0.0')
 
-        # Flag
-        flag_img = _make_tricolor_image(200, 134)
-        self._flag_photo = ImageTk.PhotoImage(flag_img)
-        flag_lbl = ctk.CTkLabel(inner, image=self._flag_photo, text="")
-        flag_lbl.pack(pady=(40, 10))
+        # Battalion crest
+        self._crest_img = _load_crest_ctk((160, 160))
+        if self._crest_img:
+            ctk.CTkLabel(inner, image=self._crest_img, text="").pack(pady=(30, 8))
+        else:
+            ctk.CTkLabel(inner, text="⚔", font=ctk.CTkFont(size=60),
+                         text_color="#F1C40F").pack(pady=(30, 8))
 
         # Institute name
         ctk.CTkLabel(inner, text=institute,
@@ -160,7 +156,7 @@ class LoginScreen(ctk.CTk):
         self._build()
 
     def _build(self):
-        institute = get_setting('institute_name', 'RUYWA Batallion')
+        institute = get_setting('institute_name', 'RUYWA Battalion')
         version = get_setting('version', '1.0.0')
 
         # Left gold accent bar
@@ -170,10 +166,13 @@ class LoginScreen(ctk.CTk):
         main = ctk.CTkFrame(self, fg_color="transparent")
         main.pack(side="left", fill="both", expand=True, padx=36, pady=30)
 
-        # Flag
-        flag_img = _make_tricolor_image(140, 94)
-        self._flag_photo = ImageTk.PhotoImage(flag_img)
-        ctk.CTkLabel(main, image=self._flag_photo, text="").pack(pady=(10, 6))
+        # Battalion crest
+        self._crest_img = _load_crest_ctk((110, 110))
+        if self._crest_img:
+            ctk.CTkLabel(main, image=self._crest_img, text="").pack(pady=(10, 6))
+        else:
+            ctk.CTkLabel(main, text="⚔", font=ctk.CTkFont(size=50),
+                         text_color="#F1C40F").pack(pady=(10, 6))
 
         ctk.CTkLabel(main, text=institute,
                      font=ctk.CTkFont(size=13),
@@ -273,12 +272,15 @@ class MainApp(ctk.CTk):
         # Logo area
         logo_frame = ctk.CTkFrame(self.sidebar, fg_color="#0F3460", corner_radius=0)
         logo_frame.pack(fill="x")
-        ctk.CTkLabel(logo_frame, text="IMAMS",
-                     font=ctk.CTkFont(size=22, weight="bold"),
-                     text_color="#F1C40F").pack(pady=(18, 2))
-        ctk.CTkLabel(logo_frame, text="Monitoring System",
+        self._sidebar_crest = _load_crest_ctk((60, 60))
+        if self._sidebar_crest:
+            ctk.CTkLabel(logo_frame, image=self._sidebar_crest, text="").pack(pady=(12, 2))
+        ctk.CTkLabel(logo_frame, text="AAAIS",
+                     font=ctk.CTkFont(size=20, weight="bold"),
+                     text_color="#F1C40F").pack(pady=(4, 0))
+        ctk.CTkLabel(logo_frame, text="RUYWA Battalion",
                      font=ctk.CTkFont(size=10),
-                     text_color="#AAAAAA").pack(pady=(0, 14))
+                     text_color="#AAAAAA").pack(pady=(0, 12))
 
         # User info
         user_frame = ctk.CTkFrame(self.sidebar, fg_color="#16213E", corner_radius=8)
@@ -341,7 +343,7 @@ class MainApp(ctk.CTk):
                                           font=ctk.CTkFont(size=16, weight="bold"))
         self.header_title.pack(side="left", padx=20, pady=10)
 
-        institute = get_setting('institute_name', 'IMAMS')
+        institute = get_setting('institute_name', 'RUYWA Battalion')
         ctk.CTkLabel(self.header, text=institute,
                      font=ctk.CTkFont(size=11), text_color="#888888").pack(side="right", padx=15)
 
