@@ -1,7 +1,7 @@
 import datetime
 import customtkinter as ctk
 from database import get_all_individuals
-from utils import compute_individual_status, ALERT_HEX, TEST_TYPES
+from utils import compute_individual_status, ALERT_HEX, ALERT_BG_HEX, TEST_TYPES
 
 
 def get_all_alerts():
@@ -122,7 +122,7 @@ class AlertsPage(ctk.CTkFrame):
 
         for a in alerts:
             color = ALERT_HEX.get(a['alert'], '#AAAAAA')
-            row = ctk.CTkFrame(self.scroll, fg_color=color + "22", corner_radius=6)
+            row = ctk.CTkFrame(self.scroll, fg_color=ALERT_BG_HEX.get(a['alert'], '#1A2A3A'), corner_radius=6)
             row.pack(fill="x", pady=2)
 
             ind_id = a['individual_id']
