@@ -2,7 +2,7 @@ import datetime
 import customtkinter as ctk
 from tkinter import messagebox
 import database as db
-from utils import TEST_TYPES, ASSESSMENT_YEARS, get_assessment_year_windows, compute_individual_status, ALERT_HEX
+from utils import TEST_TYPES, ASSESSMENT_YEARS, get_assessment_year_windows, compute_individual_status, ALERT_HEX, to_display_date, to_iso_date
 
 
 class TestEntryPage(ctk.CTkFrame):
@@ -47,9 +47,9 @@ class TestEntryPage(ctk.CTkFrame):
         self.attempt_var = ctk.StringVar(value="1")
         ctk.CTkOptionMenu(left, variable=self.attempt_var, values=["1", "2"]).pack(fill="x")
 
-        lbl(right, "Date Conducted * (YYYY-MM-DD)")
+        lbl(right, "Date Conducted * (DD-MM-YYYY)")
         self.date_entry = ctk.CTkEntry(right, width=220)
-        self.date_entry.insert(0, datetime.date.today().strftime('%Y-%m-%d'))
+        self.date_entry.insert(0, datetime.date.today().strftime('%d-%m-%Y'))
         self.date_entry.pack(fill="x")
 
         lbl(right, "Result")
@@ -74,7 +74,7 @@ class TestEntryPage(ctk.CTkFrame):
         svc = self.svc_entry.get().strip()
         ind = db.get_individual_by_service_no(svc)
         if ind:
-            self.name_lbl.configure(text=f"✓ {ind['name']} ({ind.get('rank', '')})",
+            self.name_lbl.configure(text=f"\u2713 {ind['name']} ({ind.get('rank', '')})",
                                     text_color="#27AE60")
             self._ind_id = ind['id']
         else:
@@ -94,12 +94,13 @@ class TestEntryPage(ctk.CTkFrame):
         date_str = self.date_entry.get().strip()
 
         try:
-            date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+            date_obj = datetime.datetime.strptime(date_str, "%d-%m-%Y").date()
         except ValueError:
-            messagebox.showerror("Error", "Date must be YYYY-MM-DD.")
+            messagebox.showerror("Error", "Date must be DD-MM-YYYY.\nExample: 01-06-2022")
             return
 
-        # Validate: check minimum gap (30 days) from previous test of same type/ay
+        date_iso = date_obj.strftime("%Y-%m-%d")
+
         min_gap = db.get_rule('min_test_gap_days', 30)
         prev = db.get_latest_test(self._ind_id, test_type, ay)
         if prev:
@@ -108,10 +109,10 @@ class TestEntryPage(ctk.CTkFrame):
             if gap < min_gap:
                 messagebox.showerror("Gap Violation",
                                      f"Minimum gap is {min_gap} days. "
-                                     f"Previous {test_type} was on {prev['date_conducted']} ({gap} days ago).")
+                                     f"Previous {test_type} was on "
+                                     f"{to_display_date(prev['date_conducted'])} ({gap} days ago).")
                 return
 
-        # Validate: max 2 tests per AY per type
         count = db.get_test_count(self._ind_id, test_type, ay)
         tests_per_year = db.get_rule('tests_per_year', 2)
         if count >= tests_per_year:
@@ -124,7 +125,7 @@ class TestEntryPage(ctk.CTkFrame):
             'test_type': test_type,
             'attempt_number': attempt,
             'assessment_year': ay,
-            'date_conducted': date_str,
+            'date_conducted': date_iso,
             'result': self.result_var.get(),
             'remarks': self.remarks_entry.get().strip(),
         }
@@ -158,7 +159,7 @@ class TestEntryPage(ctk.CTkFrame):
             row.pack(fill="x", pady=1)
             vals = [r.get('service_number', ''), r.get('name', ''),
                     f"AY{r['assessment_year']}", r['test_type'],
-                    f"#{r['attempt_number']}", r['date_conducted'],
+                    f"#{r['attempt_number']}", to_display_date(r['date_conducted']),
                     r.get('result', ''), r.get('remarks', '')]
             for v, w in zip(vals, widths):
                 ctk.CTkLabel(row, text=v, width=w, anchor="w").pack(side="left", padx=4, pady=3)
