@@ -2,11 +2,9 @@ import datetime
 import customtkinter as ctk
 from tkinter import messagebox
 import database as db
-from utils import compute_individual_status, TEST_TYPES, ALERT_HEX
+from utils import compute_individual_status, TEST_TYPES, ALERT_HEX, ALERT_BG_HEX
 
 
-RANKS = ["Recruit", "Naik", "Havildar", "Naib Subedar", "Subedar", "Subedar Major",
-         "Lance Naik", "Sep", "Cfn", "L/Hav", "Other"]
 BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
 
@@ -69,7 +67,7 @@ class IndividualsPage(ctk.CTkFrame):
             alert = status['overall_alert']
             color = ALERT_HEX.get(alert, '#888888')
 
-            row = ctk.CTkFrame(self.scroll, fg_color=color + "18", corner_radius=6)
+            row = ctk.CTkFrame(self.scroll, fg_color=ALERT_BG_HEX.get(alert, '#1A2A3A'), corner_radius=6)
             row.pack(fill="x", pady=2)
 
             vals = [
@@ -143,25 +141,26 @@ class IndividualFormDialog(ctk.CTkToplevel):
         form.pack(fill="both", expand=True, padx=30, pady=5)
         self.form = form
 
-        # Each value is either a CTkEntry widget or a StringVar (for OptionMenu)
         self.fields = {}
 
-        def row(label, key, widget_type="entry", options=None):
+        def row(label, key, widget_type="entry", options=None, default=""):
             ctk.CTkLabel(form, text=label, anchor="w",
                          font=ctk.CTkFont(size=12)).pack(fill="x", pady=(8, 1))
             if widget_type == "entry":
                 widget = ctk.CTkEntry(form, height=36, font=ctk.CTkFont(size=13))
                 widget.pack(fill="x", pady=(0, 2))
-                self.fields[key] = widget          # store widget directly
+                if default:
+                    widget.insert(0, default)
+                self.fields[key] = widget
             elif widget_type == "option":
                 var = ctk.StringVar(value=options[0])
                 ctk.CTkOptionMenu(form, variable=var, values=options,
                                   height=36, font=ctk.CTkFont(size=13)).pack(fill="x", pady=(0, 2))
-                self.fields[key] = var             # store StringVar for OptionMenu
+                self.fields[key] = var
 
         row("Service Number *", "service_number")
         row("Full Name *", "name")
-        row("Rank", "rank", "option", RANKS)
+        row("Rank", "rank", default="AVG")
         row("Trade", "trade")
         row("Unit", "unit")
         row("Batch", "batch")
@@ -213,9 +212,11 @@ class IndividualFormDialog(ctk.CTkToplevel):
                 return
             db.add_individual(data, self.current_user['username'])
 
-        if self.on_save:
-            self.on_save()
-        self.destroy()
+        try:
+            if self.on_save:
+                self.on_save()
+        finally:
+            self.destroy()
 
 
 class IndividualProfilePage(ctk.CTkFrame):
@@ -311,7 +312,7 @@ class IndividualProfilePage(ctk.CTkFrame):
             for tt in TEST_TYPES:
                 ts = ay_data['tests'][tt]
                 c = ALERT_HEX.get(ts['alert'], '#888')
-                row = ctk.CTkFrame(scroll, fg_color=c + "22", corner_radius=6)
+                row = ctk.CTkFrame(scroll, fg_color=ALERT_BG_HEX.get(ts['alert'], '#1A2A3A'), corner_radius=6)
                 row.pack(fill="x", padx=10, pady=2)
                 ctk.CTkLabel(row, text=tt, width=80, anchor="w",
                              font=ctk.CTkFont(weight="bold")).pack(side="left", padx=8, pady=6)
@@ -340,7 +341,7 @@ class IndividualProfilePage(ctk.CTkFrame):
 
         for med_type, ms in status['medical_status'].items():
             c = ALERT_HEX.get(ms['alert'], '#888')
-            row = ctk.CTkFrame(scroll, fg_color=c + "22", corner_radius=6)
+            row = ctk.CTkFrame(scroll, fg_color=ALERT_BG_HEX.get(ms['alert'], '#1A2A3A'), corner_radius=6)
             row.pack(fill="x", padx=10, pady=4)
             ctk.CTkLabel(row, text=med_type, font=ctk.CTkFont(weight="bold"),
                          width=150, anchor="w").pack(side="left", padx=8, pady=6)
@@ -372,7 +373,7 @@ class IndividualProfilePage(ctk.CTkFrame):
 
         for num, cs in status['counselling_status'].items():
             c = ALERT_HEX.get(cs['alert'], '#888')
-            row = ctk.CTkFrame(scroll, fg_color=c + "22", corner_radius=6)
+            row = ctk.CTkFrame(scroll, fg_color=ALERT_BG_HEX.get(cs['alert'], '#1A2A3A'), corner_radius=6)
             row.pack(fill="x", padx=10, pady=4)
             ctk.CTkLabel(row, text=f"Counselling {num}",
                          font=ctk.CTkFont(weight="bold"), width=150, anchor="w").pack(side="left", padx=8, pady=6)
