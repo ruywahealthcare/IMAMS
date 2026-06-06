@@ -229,6 +229,7 @@ class LoginScreen(ctk.CTk):
         user = db.authenticate_user(username, password)
         if user:
             log_audit(username, "Login", "Successful login")
+            self.withdraw()
             self.on_login_success(user)
             self.destroy()
         else:
