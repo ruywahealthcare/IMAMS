@@ -128,7 +128,7 @@ class AlertsPage(ctk.CTkFrame):
             ind_id = a['individual_id']
             days = a['days_left']
             days_txt = f"{days}d" if days >= 0 else f"{abs(days)}d ago"
-            end_d = a['end_date'].strftime('%d %b %Y') if a['end_date'] else '-'
+            end_d = a['end_date'].strftime('%d-%m-%Y') if a['end_date'] else '-'
             badge_txt = a['alert'].upper()
 
             vals = [a['service_number'], a['name'], a['category'],
