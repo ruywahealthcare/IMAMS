@@ -160,7 +160,7 @@ class IndividualFormDialog(ctk.CTkToplevel):
 
         row("Service Number *", "service_number")
         row("Full Name *", "name")
-        row("Rank", "rank", default="AVG")
+        row("Rank", "rank", default="AGV")
         row("Trade", "trade")
         row("Unit", "unit")
         row("Batch", "batch")
