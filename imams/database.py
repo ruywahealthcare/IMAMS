@@ -9,10 +9,19 @@ from pathlib import Path
 
 def _data_dir():
     """Return the directory where persistent files (DB, backups) should live.
-    When frozen by PyInstaller (--onefile or --onedir) use the exe's directory
-    so data survives across runs.  In normal Python use the script directory."""
+
+    When frozen by PyInstaller we use the Windows standard location
+    %APPDATA%\\AAAIS\\ (e.g. C:\\Users\\<user>\\AppData\\Roaming\\AAAIS\\).
+    This folder is tied to the user account — not the exe location — so the
+    exe can be moved, renamed, or put on a USB drive and the data is always
+    found in the same place.
+
+    In a normal Python run (development) we use the script directory."""
     if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
+        app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
+        data_dir = os.path.join(app_data, 'AAAIS')
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
     return os.path.dirname(os.path.abspath(__file__))
 
 
