@@ -2,6 +2,7 @@ import datetime
 import customtkinter as ctk
 from tkinter import messagebox
 import database as db
+from utils import to_display_date, to_iso_date
 
 
 class CounsellingEntryPage(ctk.CTkFrame):
@@ -39,9 +40,9 @@ class CounsellingEntryPage(ctk.CTkFrame):
         self.num_var = ctk.StringVar(value="1")
         ctk.CTkOptionMenu(left, variable=self.num_var, values=["1", "2"]).pack(fill="x")
 
-        lbl(right, "Date Conducted * (YYYY-MM-DD)")
+        lbl(right, "Date Conducted * (DD-MM-YYYY)")
         self.date_entry = ctk.CTkEntry(right, width=220)
-        self.date_entry.insert(0, datetime.date.today().strftime('%Y-%m-%d'))
+        self.date_entry.insert(0, datetime.date.today().strftime('%d-%m-%Y'))
         self.date_entry.pack(fill="x")
 
         lbl(right, "Counsellor Name *")
@@ -70,7 +71,7 @@ class CounsellingEntryPage(ctk.CTkFrame):
         svc = self.svc_entry.get().strip()
         ind = db.get_individual_by_service_no(svc)
         if ind:
-            self.name_lbl.configure(text=f"✓ {ind['name']}", text_color="#27AE60")
+            self.name_lbl.configure(text=f"\u2713 {ind['name']}", text_color="#27AE60")
             self._ind_id = ind['id']
         else:
             self.name_lbl.configure(text="Not found", text_color="#E74C3C")
@@ -81,12 +82,16 @@ class CounsellingEntryPage(ctk.CTkFrame):
         if not self._ind_id:
             messagebox.showerror("Error", "Valid Service Number required.")
             return
+
         date_str = self.date_entry.get().strip()
         try:
-            datetime.datetime.strptime(date_str, "%Y-%m-%d")
+            datetime.datetime.strptime(date_str, "%d-%m-%Y")
         except ValueError:
-            messagebox.showerror("Error", "Date must be YYYY-MM-DD.")
+            messagebox.showerror("Error", "Date must be DD-MM-YYYY.\nExample: 01-06-2022")
             return
+
+        date_iso = to_iso_date(date_str)
+
         if not self.counsellor_entry.get().strip():
             messagebox.showerror("Error", "Counsellor Name is required.")
             return
@@ -101,7 +106,7 @@ class CounsellingEntryPage(ctk.CTkFrame):
         data = {
             'individual_id': self._ind_id,
             'counselling_number': num,
-            'date_conducted': date_str,
+            'date_conducted': date_iso,
             'counsellor_name': self.counsellor_entry.get().strip(),
             'remarks': self.remarks_entry.get().strip(),
             'status': self.status_var.get(),
@@ -134,7 +139,7 @@ class CounsellingEntryPage(ctk.CTkFrame):
             row = ctk.CTkFrame(self.scroll, fg_color="transparent")
             row.pack(fill="x", pady=1)
             vals = [r.get('service_number', ''), r.get('name', ''),
-                    str(r['counselling_number']), r.get('date_conducted', ''),
+                    str(r['counselling_number']), to_display_date(r.get('date_conducted', '')),
                     r.get('counsellor_name', ''), r.get('status', ''), r.get('remarks', '')]
             for v, w in zip(vals, widths):
                 ctk.CTkLabel(row, text=v, width=w, anchor="w").pack(side="left", padx=4, pady=3)
