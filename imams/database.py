@@ -155,7 +155,7 @@ def init_database():
 
     # Default app settings
     defaults = [
-        ('institute_name', 'IMAMS Institute'),
+        ('institute_name', 'RUYWA Batallion'),
         ('unit_name', 'HQ Unit'),
         ('org_name', 'Organisation'),
         ('address', 'Address Line 1, City'),

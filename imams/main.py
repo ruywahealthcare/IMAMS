@@ -1,5 +1,5 @@
 """
-IMAMS - Individual Monitoring & Assessment Management System
+AAAIS - AGV ASSESSMENT ADVANCE INTIMATION SYSTEM
 Entry point: Splash Screen → Login → Main Application
 """
 import os
@@ -58,7 +58,7 @@ def _make_tricolor_image(width=200, height=140):
 class SplashScreen(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("IMAMS")
+        self.title("RUYWA")
         w, h = 700, 440
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
@@ -78,7 +78,7 @@ class SplashScreen(ctk.CTk):
         inner = ctk.CTkFrame(border, fg_color=bg_color, corner_radius=0)
         inner.place(x=3, y=3, relwidth=1, relheight=1)
 
-        institute = get_setting('institute_name', 'IMAMS Institute')
+        institute = get_setting('institute_name', 'RUYWA Batallion')
         version = get_setting('version', '1.0.0')
 
         # Flag
@@ -93,13 +93,13 @@ class SplashScreen(ctk.CTk):
                      text_color="#F1C40F").pack()
 
         # App name
-        ctk.CTkLabel(inner, text="Individual Monitoring &",
+        ctk.CTkLabel(inner, text="AGV ASSESSMENT ADVANCE",
                      font=ctk.CTkFont(size=22, weight="bold"),
                      text_color="white").pack(pady=(12, 0))
-        ctk.CTkLabel(inner, text="Assessment Management System",
+        ctk.CTkLabel(inner, text=" INTIMATION SYSTEM",
                      font=ctk.CTkFont(size=22, weight="bold"),
                      text_color="white").pack()
-        ctk.CTkLabel(inner, text="IMAMS",
+        ctk.CTkLabel(inner, text="AAAIS",
                      font=ctk.CTkFont(size=14),
                      text_color="#3498DB").pack(pady=(4, 0))
 
@@ -151,7 +151,7 @@ class LoginScreen(ctk.CTk):
     def __init__(self, on_login_success):
         super().__init__()
         self.on_login_success = on_login_success
-        self.title("IMAMS – Login")
+        self.title("RUYWA – Login")
         w, h = 520, 680
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
@@ -160,7 +160,7 @@ class LoginScreen(ctk.CTk):
         self._build()
 
     def _build(self):
-        institute = get_setting('institute_name', 'IMAMS Institute')
+        institute = get_setting('institute_name', 'RUYWA Batallion')
         version = get_setting('version', '1.0.0')
 
         # Left gold accent bar
@@ -179,9 +179,9 @@ class LoginScreen(ctk.CTk):
                      font=ctk.CTkFont(size=13),
                      text_color="#F1C40F").pack()
 
-        ctk.CTkLabel(main, text="IMAMS",
+        ctk.CTkLabel(main, text="AAAIS",
                      font=ctk.CTkFont(size=28, weight="bold")).pack(pady=(8, 0))
-        ctk.CTkLabel(main, text="Individual Monitoring & Assessment\nManagement System",
+        ctk.CTkLabel(main, text="AGV ASSESSMENT ADVANCE INTIMATION SYSTEM",
                      font=ctk.CTkFont(size=12), justify="center").pack(pady=(2, 0))
 
         # Login form card
@@ -245,7 +245,7 @@ class MainApp(ctk.CTk):
     def __init__(self, current_user):
         super().__init__()
         self.current_user = current_user
-        self.title("IMAMS – Individual Monitoring & Assessment Management System")
+        self.title("AAAIS – AGV Assessment Advance Intimation System")
         self.geometry("1280x800")
         self.minsize(1100, 650)
 

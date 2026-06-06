@@ -21,4 +21,5 @@
   # IDE
   .vscode/
   .idea/
-  
+imams/venv
+imams/__pycache__

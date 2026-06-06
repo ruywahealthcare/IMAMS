@@ -3,8 +3,8 @@ setlocal EnableDelayedExpansion
 
 echo.
 echo ============================================================
-echo   IMAMS - Windows Installer Builder
-echo   Individual Monitoring ^& Assessment Management System
+echo   AAAIS - Windows Installer Builder
+echo   AGV ASSESSMENT ADVANCE INTIMATION SYSTEM
 echo ============================================================
 echo.
 

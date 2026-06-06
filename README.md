@@ -1,4 +1,4 @@
-# IMAMS — Individual Monitoring & Assessment Management System
+# AAAIS — AGV ASSESSMENT ADVANCE INTIMATION SYSTEM
 
   A standalone desktop application built with **Python + CustomTkinter** for Windows 10/11.
 
