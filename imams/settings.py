@@ -218,8 +218,8 @@ class SettingsPage(ctk.CTkFrame):
         if not backup_dir:
             messagebox.showerror("Error", "Please choose a backup folder first.")
             return
-        # If a file path was entered by mistake, use its parent folder
-        if os.path.splitext(backup_dir)[1]:
+        # If an existing file was selected by mistake, use its parent folder
+        if os.path.isfile(backup_dir):
             backup_dir = os.path.dirname(backup_dir)
         try:
             os.makedirs(backup_dir, exist_ok=True)
