@@ -9,6 +9,33 @@ TEST_TYPES = ["Firing", "DST", "BPET", "PPT"]
 ASSESSMENT_YEARS = [2, 3, 4]
 
 
+def to_display_date(iso_date) -> str:
+    """Convert YYYY-MM-DD stored date to DD-MM-YYYY for display."""
+    if not iso_date:
+        return ''
+    try:
+        return datetime.datetime.strptime(str(iso_date)[:10], "%Y-%m-%d").strftime("%d-%m-%Y")
+    except (ValueError, TypeError):
+        return str(iso_date)
+
+
+def to_iso_date(display_date: str) -> str:
+    """Convert DD-MM-YYYY user input to YYYY-MM-DD for DB storage.
+    Also accepts already-ISO YYYY-MM-DD input as a fallback."""
+    if not display_date:
+        return ''
+    s = str(display_date).strip()
+    try:
+        return datetime.datetime.strptime(s[:10], "%d-%m-%Y").strftime("%Y-%m-%d")
+    except ValueError:
+        pass
+    try:
+        datetime.datetime.strptime(s[:10], "%Y-%m-%d")
+        return s[:10]
+    except ValueError:
+        return s
+
+
 def months_elapsed(enrollment_date_str: str) -> float:
     try:
         enroll = datetime.datetime.strptime(enrollment_date_str, "%Y-%m-%d").date()
@@ -305,9 +332,10 @@ def search_individuals(query: str):
         elif query_lower.startswith('show batch '):
             batch = query_lower.replace('show batch ', '').strip()
             matched = ind.get('batch', '').lower() == batch
-        elif query_lower.startswith('show unit '):
-            unit = query_lower.replace('show unit ', '').strip()
-            matched = unit in ind.get('unit', '').lower()
+        elif query_lower.startswith('show coy ') or query_lower.startswith('show unit '):
+            parts = query_lower.split(None, 2)
+            coy = parts[2] if len(parts) > 2 else ''
+            matched = coy in ind.get('coy', '').lower()
         elif query_lower.startswith('show service no '):
             svc = query_lower.replace('show service no ', '').strip()
             matched = svc in ind.get('service_number', '').lower()
@@ -323,10 +351,9 @@ def search_individuals(query: str):
         elif 'all individuals' in query_lower or query_lower == '':
             matched = True
         else:
-            # Fuzzy match on name / service number
             matched = (query_lower in ind.get('name', '').lower() or
                        query_lower in ind.get('service_number', '').lower() or
-                       query_lower in ind.get('unit', '').lower() or
+                       query_lower in ind.get('coy', '').lower() or
                        query_lower in ind.get('batch', '').lower())
 
         if matched:
