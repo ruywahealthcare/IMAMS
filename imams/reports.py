@@ -65,9 +65,16 @@ def export_to_excel(data: list, headers: list, title: str, filepath: str):
         for col_idx, val in enumerate(row, 1):
             ws.cell(row=row_idx, column=col_idx, value=str(val) if val is not None else '')
 
+    from openpyxl.cell.cell import MergedCell
     for col in ws.columns:
-        max_len = max((len(str(cell.value or '')) for cell in col), default=10)
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+        max_len = max(
+            (len(str(cell.value or '')) for cell in col if not isinstance(cell, MergedCell)),
+            default=10
+        )
+        col_letter = next((cell.column_letter for cell in col
+                           if not isinstance(cell, MergedCell)), None)
+        if col_letter:
+            ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
     wb.save(filepath)
 
