@@ -3,7 +3,7 @@ import datetime
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 import database as db
-from utils import compute_individual_status, TEST_TYPES
+from utils import compute_individual_status, TEST_TYPES, to_display_date
 
 
 def _safe_import():
@@ -88,8 +88,6 @@ def export_to_csv(data: list, headers: list, filepath: str):
 
 
 def export_to_pdf(data: list, headers: list, title: str, filepath: str):
-    # Python 3.8 compatibility: hashlib.md5() gained 'usedforsecurity' in 3.9.
-    # ReportLab passes it on newer builds, crashing on 3.8.  Strip the kwarg.
     import hashlib as _hashlib
     _orig_md5 = _hashlib.md5
     def _md5_compat(*args, **kwargs):
@@ -113,7 +111,7 @@ def export_to_pdf(data: list, headers: list, title: str, filepath: str):
     title_style = ParagraphStyle('title', parent=styles['Title'], fontSize=14, spaceAfter=4)
     sub_style = ParagraphStyle('sub', parent=styles['Normal'], fontSize=9, spaceAfter=8)
 
-    elements.append(Paragraph(f"{hdr['institute']} — {title}", title_style))
+    elements.append(Paragraph(f"{hdr['institute']} \u2014 {title}", title_style))
     elements.append(Paragraph(
         f"{hdr['org']} | {hdr['unit']} | Generated: {datetime.datetime.now().strftime('%d %b %Y %H:%M')}",
         sub_style))
@@ -144,15 +142,16 @@ def export_to_pdf(data: list, headers: list, title: str, filepath: str):
 
 def _individuals_table_data():
     individuals = db.get_all_individuals()
-    headers = ["Svc No", "Name", "Rank", "Trade", "Unit", "Batch", "DOB",
+    headers = ["Svc No", "Name", "Rank", "Trade", "COY", "Batch", "DOB",
                "Enrolled", "Blood", "Mobile", "Status", "Alert"]
     rows = []
     for ind in individuals:
         status = compute_individual_status(ind)
         rows.append([
             ind.get('service_number', ''), ind.get('name', ''), ind.get('rank', ''),
-            ind.get('trade', ''), ind.get('unit', ''), ind.get('batch', ''),
-            ind.get('date_of_birth', ''), ind.get('enrollment_date', ''),
+            ind.get('trade', ''), ind.get('coy', ''), ind.get('batch', ''),
+            to_display_date(ind.get('date_of_birth', '')),
+            to_display_date(ind.get('enrollment_date', '')),
             ind.get('blood_group', ''), ind.get('mobile_number', ''),
             "Completed" if status['monitoring_complete'] else "Active",
             status['overall_alert'].upper(),
@@ -164,20 +163,20 @@ def _test_report_data(test_type=None):
     conn = db.get_connection()
     c = conn.cursor()
     if test_type:
-        c.execute("""SELECT t.*, i.name, i.service_number, i.unit, i.batch
+        c.execute("""SELECT t.*, i.name, i.service_number, i.coy, i.batch
                      FROM tests t JOIN individuals i ON t.individual_id=i.id
                      WHERE t.test_type=? ORDER BY i.name""", (test_type,))
     else:
-        c.execute("""SELECT t.*, i.name, i.service_number, i.unit, i.batch
+        c.execute("""SELECT t.*, i.name, i.service_number, i.coy, i.batch
                      FROM tests t JOIN individuals i ON t.individual_id=i.id
                      ORDER BY i.name""")
     rows_raw = [dict(r) for r in c.fetchall()]
     conn.close()
 
-    headers = ["Svc No", "Name", "Unit", "Batch", "AY", "Test", "Attempt", "Date", "Result", "Remarks"]
-    rows = [[r.get('service_number', ''), r.get('name', ''), r.get('unit', ''), r.get('batch', ''),
+    headers = ["Svc No", "Name", "COY", "Batch", "AY", "Test", "Attempt", "Date", "Result", "Remarks"]
+    rows = [[r.get('service_number', ''), r.get('name', ''), r.get('coy', ''), r.get('batch', ''),
              f"AY{r['assessment_year']}", r['test_type'], f"#{r['attempt_number']}",
-             r['date_conducted'], r.get('result', ''), r.get('remarks', '')]
+             to_display_date(r['date_conducted']), r.get('result', ''), r.get('remarks', '')]
             for r in rows_raw]
     return headers, rows
 
@@ -185,14 +184,14 @@ def _test_report_data(test_type=None):
 def _medical_report_data():
     conn = db.get_connection()
     c = conn.cursor()
-    c.execute("""SELECT m.*, i.name, i.service_number, i.unit, i.batch
+    c.execute("""SELECT m.*, i.name, i.service_number, i.coy, i.batch
                  FROM medical_examinations m JOIN individuals i ON m.individual_id=i.id
                  ORDER BY i.name""")
     rows_raw = [dict(r) for r in c.fetchall()]
     conn.close()
-    headers = ["Svc No", "Name", "Unit", "Batch", "Type", "Date", "Category", "Result", "Remarks"]
-    rows = [[r.get('service_number', ''), r.get('name', ''), r.get('unit', ''), r.get('batch', ''),
-             r['medical_type'], r.get('date_conducted', ''), r.get('category', ''),
+    headers = ["Svc No", "Name", "COY", "Batch", "Type", "Date", "Category", "Result", "Remarks"]
+    rows = [[r.get('service_number', ''), r.get('name', ''), r.get('coy', ''), r.get('batch', ''),
+             r['medical_type'], to_display_date(r.get('date_conducted', '')), r.get('category', ''),
              r.get('result', ''), r.get('remarks', '')]
             for r in rows_raw]
     return headers, rows
@@ -201,14 +200,14 @@ def _medical_report_data():
 def _counselling_report_data():
     conn = db.get_connection()
     c = conn.cursor()
-    c.execute("""SELECT cs.*, i.name, i.service_number, i.unit, i.batch
+    c.execute("""SELECT cs.*, i.name, i.service_number, i.coy, i.batch
                  FROM counselling_sessions cs JOIN individuals i ON cs.individual_id=i.id
                  ORDER BY i.name""")
     rows_raw = [dict(r) for r in c.fetchall()]
     conn.close()
-    headers = ["Svc No", "Name", "Unit", "Batch", "C#", "Date", "Counsellor", "Status", "Remarks"]
-    rows = [[r.get('service_number', ''), r.get('name', ''), r.get('unit', ''), r.get('batch', ''),
-             str(r['counselling_number']), r.get('date_conducted', ''),
+    headers = ["Svc No", "Name", "COY", "Batch", "C#", "Date", "Counsellor", "Status", "Remarks"]
+    rows = [[r.get('service_number', ''), r.get('name', ''), r.get('coy', ''), r.get('batch', ''),
+             str(r['counselling_number']), to_display_date(r.get('date_conducted', '')),
              r.get('counsellor_name', ''), r.get('status', ''), r.get('remarks', '')]
             for r in rows_raw]
     return headers, rows
@@ -220,7 +219,7 @@ def _overdue_report_data():
     overdue = [a for a in alerts if a['alert'] == 'overdue']
     headers = ["Svc No", "Name", "Category", "Item", "Days Overdue", "Due Date"]
     rows = [[a['service_number'], a['name'], a['category'], a['item'],
-             str(abs(a['days_left'])), str(a['end_date'])]
+             str(abs(a['days_left'])), a['end_date'].strftime('%d-%m-%Y')]
             for a in overdue]
     return headers, rows
 
@@ -231,7 +230,7 @@ def _due_report_data(days=90):
     due = [a for a in alerts if 0 <= a['days_left'] <= days]
     headers = ["Svc No", "Name", "Category", "Item", "Days Left", "Alert", "Due Date"]
     rows = [[a['service_number'], a['name'], a['category'], a['item'],
-             str(a['days_left']), a['alert'].upper(), str(a['end_date'])]
+             str(a['days_left']), a['alert'].upper(), a['end_date'].strftime('%d-%m-%Y')]
             for a in due]
     return headers, rows
 
