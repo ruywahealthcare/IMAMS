@@ -144,15 +144,16 @@ class SplashScreen(ctk.CTk):
 # ─────────────────────────────────────────────────────────────
 
 class LoginScreen(ctk.CTk):
-    def __init__(self, on_login_success):
+    def __init__(self):
         super().__init__()
-        self.on_login_success = on_login_success
+        self.result_user = None
         self.title("RUYWA – Login")
         w, h = 520, 680
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
         self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build()
 
     def _build(self):
@@ -228,12 +229,15 @@ class LoginScreen(ctk.CTk):
         user = db.authenticate_user(username, password)
         if user:
             log_audit(username, "Login", "Successful login")
-            self.withdraw()
-            self.on_login_success(user)
-            self.destroy()
+            self.result_user = user
+            self.quit()
         else:
             self.error_lbl.configure(text="Invalid username or password.")
             log_audit(username, "Login Failed", "Invalid credentials")
+
+    def _on_close(self):
+        self.result_user = None
+        self.quit()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -255,6 +259,8 @@ class MainApp(ctk.CTk):
         self._nav_buttons = {}
         self._current_page = None
         self._history = []
+        self.logout_requested = False
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self._build_layout()
         self._navigate("dashboard")
@@ -430,22 +436,42 @@ class MainApp(ctk.CTk):
 
     def _logout(self):
         log_audit(self.current_user['username'], "Logout", "")
-        self.destroy()
-        launch()
+        self.logout_requested = True
+        self.quit()
+
+    def _on_close(self):
+        self.logout_requested = False
+        self.quit()
 
 
 # ─────────────────────────────────────────────────────────────
 #  APPLICATION LAUNCH
 # ─────────────────────────────────────────────────────────────
 
-def launch():
-    """Show login, then open main app on success."""
-    def on_login(user):
+def run_app():
+    """Login → Main App loop. Each window is fully torn down before the next
+    is created, so only one Tk root (and image context) exists at a time.
+    This prevents cross-interpreter image errors (e.g. 'pyimage doesn't exist')."""
+    while True:
+        login = LoginScreen()
+        login.mainloop()
+        user = login.result_user
+        try:
+            login.destroy()
+        except Exception:
+            pass
+        if not user:
+            return
+
         app = MainApp(user)
         app.mainloop()
-
-    login = LoginScreen(on_login_success=on_login)
-    login.mainloop()
+        logout = getattr(app, 'logout_requested', False)
+        try:
+            app.destroy()
+        except Exception:
+            pass
+        if not logout:
+            return
 
 
 def main():
@@ -460,9 +486,13 @@ def main():
     # Splash screen
     splash = SplashScreen()
     splash.mainloop()
+    try:
+        splash.destroy()
+    except Exception:
+        pass
 
-    # Then login
-    launch()
+    # Login → Main App
+    run_app()
 
 
 if __name__ == "__main__":
