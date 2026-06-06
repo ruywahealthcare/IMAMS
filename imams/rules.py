@@ -26,6 +26,69 @@ RULE_LABELS = {
     'tests_per_year': 'Tests Required per AY',
 }
 
+# Sensible upper bounds so values stay realistic
+RULE_MAX = {
+    'monitoring_period_months': 600,
+    'min_test_gap_days': 3650,
+    'alert_yellow_days': 3650,
+    'alert_orange_days': 3650,
+    'alert_red_days': 3650,
+    'tests_per_year': 50,
+}
+DEFAULT_MAX = 600  # months-style fields
+
+
+class IntSpinbox(ctk.CTkFrame):
+    """Number-only input with up/down arrows. Accepts integers only."""
+
+    def __init__(self, parent, width=150, height=34, min_val=0, max_val=999, step=1, **kwargs):
+        super().__init__(parent, width=width, height=height, fg_color="transparent", **kwargs)
+        self.min_val = min_val
+        self.max_val = max_val
+        self.step = step
+
+        self.grid_columnconfigure(1, weight=1)
+        vcmd = (self.register(self._validate), '%P')
+
+        self.minus_btn = ctk.CTkButton(self, text="\u2212", width=32, height=height,
+                                       command=self._decrement)
+        self.minus_btn.grid(row=0, column=0, padx=(0, 2))
+
+        self.entry = ctk.CTkEntry(self, width=58, height=height, justify="center",
+                                  validate="key", validatecommand=vcmd)
+        self.entry.grid(row=0, column=1, padx=2, sticky="ew")
+
+        self.plus_btn = ctk.CTkButton(self, text="+", width=32, height=height,
+                                      command=self._increment)
+        self.plus_btn.grid(row=0, column=2, padx=(2, 0))
+
+    def _validate(self, proposed):
+        if proposed == "":
+            return True
+        return proposed.isdigit()
+
+    def _increment(self):
+        self.set(min(self.get() + self.step, self.max_val))
+
+    def _decrement(self):
+        self.set(max(self.get() - self.step, self.min_val))
+
+    def get(self):
+        try:
+            return int(self.entry.get())
+        except (ValueError, TypeError):
+            return self.min_val
+
+    def set(self, value):
+        self.entry.delete(0, "end")
+        self.entry.insert(0, str(value))
+
+    def set_enabled(self, enabled):
+        state = "normal" if enabled else "disabled"
+        self.entry.configure(state=state)
+        self.minus_btn.configure(state=state)
+        self.plus_btn.configure(state=state)
+
 
 class RulesPage(ctk.CTkFrame):
     def __init__(self, parent, current_user, **kwargs):
@@ -56,7 +119,7 @@ class RulesPage(ctk.CTkFrame):
 
         for key, label in RULE_LABELS.items():
             rule = rule_dict.get(key, {})
-            value = rule.get('rule_value', '')
+            value = rule.get('rule_value', '0')
             description = rule.get('description', '')
 
             row = ctk.CTkFrame(scroll, corner_radius=8)
@@ -70,26 +133,17 @@ class RulesPage(ctk.CTkFrame):
                 ctk.CTkLabel(info_col, text=description, anchor="w",
                              text_color="#888888", font=ctk.CTkFont(size=11)).pack(anchor="w")
 
-            var = ctk.StringVar(value=str(value))
-            entry = ctk.CTkEntry(row, textvariable=var, width=120,
-                                 state="normal" if self.is_admin else "disabled")
-            entry.pack(side="right", padx=15, pady=10)
-            self.entries[key] = var
+            spin = IntSpinbox(row, min_val=0, max_val=RULE_MAX.get(key, DEFAULT_MAX))
+            try:
+                spin.set(int(value))
+            except (ValueError, TypeError):
+                spin.set(0)
+            spin.pack(side="right", padx=15, pady=10)
+            if not self.is_admin:
+                spin.set_enabled(False)
+            self.entries[key] = spin
 
     def _save_all(self):
-        errors = []
-        for key, var in self.entries.items():
-            val = var.get().strip()
-            try:
-                int(val)
-            except ValueError:
-                errors.append(f"{RULE_LABELS.get(key, key)}: must be an integer")
-
-        if errors:
-            messagebox.showerror("Validation Errors", "\n".join(errors))
-            return
-
-        for key, var in self.entries.items():
-            db.update_rule(key, var.get().strip(), self.current_user['username'])
-
+        for key, spin in self.entries.items():
+            db.update_rule(key, str(spin.get()), self.current_user['username'])
         messagebox.showinfo("Saved", "All rules updated successfully.\nChanges are effective immediately.")
