@@ -68,20 +68,29 @@ class IntSpinbox(ctk.CTkFrame):
         return proposed.isdigit()
 
     def _increment(self):
-        self.set(min(self.get() + self.step, self.max_val))
+        self.set(self.get() + self.step)
 
     def _decrement(self):
-        self.set(max(self.get() - self.step, self.min_val))
+        self.set(self.get() - self.step)
+
+    def get_raw(self):
+        return self.entry.get().strip()
 
     def get(self):
         try:
-            return int(self.entry.get())
+            v = int(self.entry.get())
         except (ValueError, TypeError):
             return self.min_val
+        return max(self.min_val, min(self.max_val, v))
 
     def set(self, value):
+        try:
+            v = int(value)
+        except (ValueError, TypeError):
+            v = self.min_val
+        v = max(self.min_val, min(self.max_val, v))
         self.entry.delete(0, "end")
-        self.entry.insert(0, str(value))
+        self.entry.insert(0, str(v))
 
     def set_enabled(self, enabled):
         state = "normal" if enabled else "disabled"
@@ -144,6 +153,25 @@ class RulesPage(ctk.CTkFrame):
             self.entries[key] = spin
 
     def _save_all(self):
+        errors = []
+        for key, spin in self.entries.items():
+            raw = spin.get_raw()
+            label = RULE_LABELS.get(key, key)
+            if raw == "":
+                errors.append(f"{label}: cannot be empty")
+                continue
+            try:
+                v = int(raw)
+            except ValueError:
+                errors.append(f"{label}: must be a whole number")
+                continue
+            if v < spin.min_val or v > spin.max_val:
+                errors.append(f"{label}: must be between {spin.min_val} and {spin.max_val}")
+
+        if errors:
+            messagebox.showerror("Validation Errors", "\n".join(errors))
+            return
+
         for key, spin in self.entries.items():
             db.update_rule(key, str(spin.get()), self.current_user['username'])
         messagebox.showinfo("Saved", "All rules updated successfully.\nChanges are effective immediately.")
