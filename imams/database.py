@@ -270,13 +270,20 @@ def update_individual(individual_id: int, data: dict, username: str):
 
 
 def delete_individual(individual_id: int, username: str):
+    row = None
     conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT service_number, name FROM individuals WHERE id=?", (individual_id,))
-    row = c.fetchone()
-    conn.execute("DELETE FROM individuals WHERE id=?", (individual_id,))
-    conn.commit()
-    conn.close()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT service_number, name FROM individuals WHERE id=?", (individual_id,))
+        row = c.fetchone()
+        # Remove dependent child records first to satisfy FK constraints
+        c.execute("DELETE FROM tests WHERE individual_id=?", (individual_id,))
+        c.execute("DELETE FROM medical_examinations WHERE individual_id=?", (individual_id,))
+        c.execute("DELETE FROM counselling_sessions WHERE individual_id=?", (individual_id,))
+        c.execute("DELETE FROM individuals WHERE id=?", (individual_id,))
+        conn.commit()
+    finally:
+        conn.close()
     if row:
         log_audit(username, "Deleted Individual", f"Service No: {row[0]}, Name: {row[1]}")
 
