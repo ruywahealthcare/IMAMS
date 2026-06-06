@@ -59,7 +59,7 @@ def init_database():
         name TEXT NOT NULL,
         rank TEXT,
         trade TEXT,
-        unit TEXT,
+        coy TEXT,
         batch TEXT,
         date_of_birth TEXT,
         enrollment_date TEXT NOT NULL,
@@ -177,6 +177,12 @@ def init_database():
                  WHERE key='institute_name'
                  AND value != 'RUYWA BATTALION'""")
 
+    # Migration: rename 'unit' column to 'coy' (idempotent, SQLite 3.25+)
+    c.execute("PRAGMA table_info(individuals)")
+    _cols = {row[1] for row in c.fetchall()}
+    if 'unit' in _cols and 'coy' not in _cols:
+        c.execute("ALTER TABLE individuals RENAME COLUMN unit TO coy")
+
     # Default app settings
     defaults = [
         ('institute_name', 'RUYWA BATTALION'),
@@ -267,9 +273,9 @@ def add_individual(data: dict, username: str) -> int:
     conn = get_connection()
     c = conn.cursor()
     c.execute("""INSERT INTO individuals
-        (service_number, name, rank, trade, unit, batch, date_of_birth,
+        (service_number, name, rank, trade, coy, batch, date_of_birth,
          enrollment_date, blood_group, mobile_number, remarks)
-        VALUES (:service_number,:name,:rank,:trade,:unit,:batch,:date_of_birth,
+        VALUES (:service_number,:name,:rank,:trade,:coy,:batch,:date_of_birth,
                 :enrollment_date,:blood_group,:mobile_number,:remarks)""", data)
     new_id = c.lastrowid
     conn.commit()
@@ -284,7 +290,7 @@ def update_individual(individual_id: int, data: dict, username: str):
     data['updated_at'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     conn.execute("""UPDATE individuals SET
         service_number=:service_number, name=:name, rank=:rank, trade=:trade,
-        unit=:unit, batch=:batch, date_of_birth=:date_of_birth,
+        coy=:coy, batch=:batch, date_of_birth=:date_of_birth,
         enrollment_date=:enrollment_date, blood_group=:blood_group,
         mobile_number=:mobile_number, remarks=:remarks, updated_at=:updated_at
         WHERE id=:id""", data)
