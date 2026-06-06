@@ -88,6 +88,15 @@ def export_to_csv(data: list, headers: list, filepath: str):
 
 
 def export_to_pdf(data: list, headers: list, title: str, filepath: str):
+    # Python 3.8 compatibility: hashlib.md5() gained 'usedforsecurity' in 3.9.
+    # ReportLab passes it on newer builds, crashing on 3.8.  Strip the kwarg.
+    import hashlib as _hashlib
+    _orig_md5 = _hashlib.md5
+    def _md5_compat(*args, **kwargs):
+        kwargs.pop('usedforsecurity', None)
+        return _orig_md5(*args, **kwargs)
+    _hashlib.md5 = _md5_compat
+
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
     from reportlab.lib.units import cm
