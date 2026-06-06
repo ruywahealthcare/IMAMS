@@ -381,7 +381,7 @@ class SettingsPage(ctk.CTkFrame):
         from tkinter import filedialog
         import csv
         fp = filedialog.asksaveasfilename(defaultextension=".csv",
-                                          initialfile="IMAMS_AuditLog",
+                                          initialfile="AAAIS_AuditLog",
                                           filetypes=[("CSV", "*.csv")])
         if fp:
             logs = db.get_audit_logs(10000)
