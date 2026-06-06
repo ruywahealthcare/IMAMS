@@ -4,6 +4,12 @@ from tkinter import messagebox
 import database as db
 from utils import compute_individual_status, TEST_TYPES, ALERT_HEX, ALERT_BG_HEX
 
+try:
+    from tkcalendar import Calendar as TkCalendar
+    _HAS_CALENDAR = True
+except ImportError:
+    _HAS_CALENDAR = False
+
 
 BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
@@ -133,6 +139,39 @@ class IndividualFormDialog(ctk.CTkToplevel):
         if individual:
             self._populate(individual)
 
+    def _open_calendar(self, entry_widget):
+        """Open a calendar popup and set the chosen date on entry_widget."""
+        top = ctk.CTkToplevel(self)
+        top.title("Pick Date")
+        top.grab_set()
+        top.resizable(False, False)
+        top.geometry("300x270")
+
+        if _HAS_CALENDAR:
+            cal = TkCalendar(top, selectmode='day', date_pattern='yyyy-mm-dd',
+                             background='#1A1A2E', foreground='white',
+                             headersbackground='#0F3460', headersforeground='#F1C40F',
+                             selectbackground='#F1C40F', selectforeground='#0A1628',
+                             weekendforeground='#3498DB', othermonthforeground='#555555',
+                             font=("Helvetica", 11))
+            cal.pack(padx=10, pady=10, fill="both", expand=True)
+
+            def _confirm():
+                chosen = cal.get_date()
+                entry_widget.configure(state="normal")
+                entry_widget.delete(0, "end")
+                entry_widget.insert(0, chosen)
+                top.destroy()
+
+            ctk.CTkButton(top, text="Select Date", height=36,
+                          fg_color="#F1C40F", text_color="#0A1628",
+                          hover_color="#D4AC0D",
+                          command=_confirm).pack(pady=(0, 10))
+        else:
+            ctk.CTkLabel(top, text="tkcalendar not installed.\nType the date manually in\nYYYY-MM-DD format.",
+                         justify="center").pack(pady=30)
+            ctk.CTkButton(top, text="OK", command=top.destroy).pack(pady=5)
+
     def _build(self):
         ctk.CTkLabel(self, text=self.title(),
                      font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 10))
@@ -158,14 +197,35 @@ class IndividualFormDialog(ctk.CTkToplevel):
                                   height=36, font=ctk.CTkFont(size=13)).pack(fill="x", pady=(0, 2))
                 self.fields[key] = var
 
+        def date_row(label, key, required=False):
+            lbl = label + (" *" if required else "") + " (YYYY-MM-DD)"
+            ctk.CTkLabel(form, text=lbl, anchor="w",
+                         font=ctk.CTkFont(size=12)).pack(fill="x", pady=(8, 1))
+            wrap = ctk.CTkFrame(form, fg_color="transparent")
+            wrap.pack(fill="x", pady=(0, 2))
+            entry = ctk.CTkEntry(wrap, height=36, font=ctk.CTkFont(size=13))
+            entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
+            ctk.CTkButton(wrap, text="📅", width=40, height=36,
+                          command=lambda e=entry: self._open_calendar(e)).pack(side="left")
+            self.fields[key] = entry
+
         row("Service Number *", "service_number")
         row("Full Name *", "name")
-        row("Rank", "rank", default="AGV")
+
+        # Rank: fixed to AGV, non-editable
+        ctk.CTkLabel(form, text="Rank (fixed: AGV)", anchor="w",
+                     font=ctk.CTkFont(size=12)).pack(fill="x", pady=(8, 1))
+        rank_entry = ctk.CTkEntry(form, height=36, font=ctk.CTkFont(size=13))
+        rank_entry.insert(0, "AGV")
+        rank_entry.configure(state="disabled", text_color="#888888")
+        rank_entry.pack(fill="x", pady=(0, 2))
+        self.fields["rank"] = rank_entry
+
         row("Trade", "trade")
         row("Unit", "unit")
         row("Batch", "batch")
-        row("Date of Birth (YYYY-MM-DD)", "date_of_birth")
-        row("Enrollment Date * (YYYY-MM-DD)", "enrollment_date")
+        date_row("Date of Birth", "date_of_birth")
+        date_row("Enrollment Date", "enrollment_date", required=True)
         row("Blood Group", "blood_group", "option", BLOOD_GROUPS)
         row("Mobile Number", "mobile_number")
         row("Remarks", "remarks")
@@ -185,13 +245,19 @@ class IndividualFormDialog(ctk.CTkToplevel):
         for key, widget in self.fields.items():
             val = str(ind.get(key, '') or '')
             if isinstance(widget, ctk.CTkEntry):
+                was_disabled = str(widget.cget("state")) == "disabled"
+                if was_disabled:
+                    widget.configure(state="normal")
                 widget.delete(0, "end")
                 widget.insert(0, val)
+                if was_disabled:
+                    widget.configure(state="disabled")
             else:               # StringVar
                 widget.set(val)
 
     def _save(self):
         data = {k: self._get_field_value(k) for k in self.fields}
+        data['rank'] = 'AGV'   # rank is always fixed
         if not data['service_number'] or not data['name'] or not data['enrollment_date']:
             messagebox.showerror("Validation",
                                  "Service Number, Name, and Enrollment Date are required.\n\n"
