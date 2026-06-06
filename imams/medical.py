@@ -2,6 +2,7 @@ import datetime
 import customtkinter as ctk
 from tkinter import messagebox
 import database as db
+from utils import to_display_date, to_iso_date
 
 
 MEDICAL_TYPES = ["Annual Medical", "Exit Medical"]
@@ -43,9 +44,9 @@ class MedicalEntryPage(ctk.CTkFrame):
         self.med_type_var = ctk.StringVar(value=MEDICAL_TYPES[0])
         ctk.CTkOptionMenu(left, variable=self.med_type_var, values=MEDICAL_TYPES).pack(fill="x")
 
-        lbl(right, "Date Conducted * (YYYY-MM-DD)")
+        lbl(right, "Date Conducted * (DD-MM-YYYY)")
         self.date_entry = ctk.CTkEntry(right, width=220)
-        self.date_entry.insert(0, datetime.date.today().strftime('%Y-%m-%d'))
+        self.date_entry.insert(0, datetime.date.today().strftime('%d-%m-%Y'))
         self.date_entry.pack(fill="x")
 
         lbl(right, "Medical Category")
@@ -74,7 +75,7 @@ class MedicalEntryPage(ctk.CTkFrame):
         svc = self.svc_entry.get().strip()
         ind = db.get_individual_by_service_no(svc)
         if ind:
-            self.name_lbl.configure(text=f"✓ {ind['name']}", text_color="#27AE60")
+            self.name_lbl.configure(text=f"\u2713 {ind['name']}", text_color="#27AE60")
             self._ind_id = ind['id']
         else:
             self.name_lbl.configure(text="Not found", text_color="#E74C3C")
@@ -85,12 +86,15 @@ class MedicalEntryPage(ctk.CTkFrame):
         if not self._ind_id:
             messagebox.showerror("Error", "Valid Service Number required.")
             return
+
         date_str = self.date_entry.get().strip()
         try:
-            datetime.datetime.strptime(date_str, "%Y-%m-%d")
+            datetime.datetime.strptime(date_str, "%d-%m-%Y")
         except ValueError:
-            messagebox.showerror("Error", "Date must be YYYY-MM-DD.")
+            messagebox.showerror("Error", "Date must be DD-MM-YYYY.\nExample: 01-06-2022")
             return
+
+        date_iso = to_iso_date(date_str)
 
         med_type = self.med_type_var.get()
         existing_count = db.get_medical_count(self._ind_id, med_type)
@@ -102,7 +106,7 @@ class MedicalEntryPage(ctk.CTkFrame):
         data = {
             'individual_id': self._ind_id,
             'medical_type': med_type,
-            'date_conducted': date_str,
+            'date_conducted': date_iso,
             'category': self.cat_var.get(),
             'result': self.result_var.get(),
             'remarks': self.remarks_entry.get().strip(),
@@ -135,7 +139,7 @@ class MedicalEntryPage(ctk.CTkFrame):
             row = ctk.CTkFrame(self.scroll, fg_color="transparent")
             row.pack(fill="x", pady=1)
             vals = [r.get('service_number', ''), r.get('name', ''), r['medical_type'],
-                    r.get('date_conducted', ''), r.get('category', ''),
+                    to_display_date(r.get('date_conducted', '')), r.get('category', ''),
                     r.get('result', ''), r.get('remarks', '')]
             for v, w in zip(vals, widths):
                 ctk.CTkLabel(row, text=v, width=w, anchor="w").pack(side="left", padx=4, pady=3)
