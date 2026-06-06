@@ -27,7 +27,7 @@ def _get_report_header():
     return {
         'org': db.get_setting('org_name', 'Organisation'),
         'unit': db.get_setting('unit_name', 'HQ Unit'),
-        'institute': db.get_setting('institute_name', 'IMAMS'),
+        'institute': db.get_setting('institute_name', 'RUYWA Battalion'),
         'address': db.get_setting('address', ''),
         'contact': db.get_setting('contact', ''),
     }
@@ -313,32 +313,49 @@ class ReportsPage(ctk.CTkFrame):
 
         report_name = self.report_var.get().replace(' ', '_')
         ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        default_name = f"IMAMS_{report_name}_{ts}"
+        default_name = f"AAAIS_{report_name}_{ts}"
 
         if fmt == 'excel':
             fp = filedialog.asksaveasfilename(defaultextension=".xlsx",
                                               initialfile=default_name,
                                               filetypes=[("Excel", "*.xlsx")])
             if fp:
-                export_to_excel(rows, headers, self.report_var.get(), fp)
-                db.log_audit(self.current_user['username'], "Generated Report",
-                             f"{self.report_var.get()} Excel")
-                messagebox.showinfo("Exported", f"Saved:\n{fp}")
+                try:
+                    export_to_excel(rows, headers, self.report_var.get(), fp)
+                    db.log_audit(self.current_user['username'], "Generated Report",
+                                 f"{self.report_var.get()} Excel")
+                    messagebox.showinfo("Exported", f"Saved:\n{fp}")
+                except ImportError:
+                    messagebox.showerror("Missing Library",
+                        "openpyxl is not installed.\n\nRun in your IMAMS folder:\n"
+                        "  venv\\Scripts\\pip install openpyxl")
+                except Exception as e:
+                    messagebox.showerror("Export Failed", str(e))
         elif fmt == 'pdf':
             fp = filedialog.asksaveasfilename(defaultextension=".pdf",
                                               initialfile=default_name,
                                               filetypes=[("PDF", "*.pdf")])
             if fp:
-                export_to_pdf(rows, headers, self.report_var.get(), fp)
-                db.log_audit(self.current_user['username'], "Generated Report",
-                             f"{self.report_var.get()} PDF")
-                messagebox.showinfo("Exported", f"Saved:\n{fp}")
+                try:
+                    export_to_pdf(rows, headers, self.report_var.get(), fp)
+                    db.log_audit(self.current_user['username'], "Generated Report",
+                                 f"{self.report_var.get()} PDF")
+                    messagebox.showinfo("Exported", f"Saved:\n{fp}")
+                except ImportError:
+                    messagebox.showerror("Missing Library",
+                        "reportlab is not installed.\n\nRun in your IMAMS folder:\n"
+                        "  venv\\Scripts\\pip install reportlab")
+                except Exception as e:
+                    messagebox.showerror("Export Failed", str(e))
         elif fmt == 'csv':
             fp = filedialog.asksaveasfilename(defaultextension=".csv",
                                               initialfile=default_name,
                                               filetypes=[("CSV", "*.csv")])
             if fp:
-                export_to_csv(rows, headers, fp)
-                db.log_audit(self.current_user['username'], "Generated Report",
-                             f"{self.report_var.get()} CSV")
-                messagebox.showinfo("Exported", f"Saved:\n{fp}")
+                try:
+                    export_to_csv(rows, headers, fp)
+                    db.log_audit(self.current_user['username'], "Generated Report",
+                                 f"{self.report_var.get()} CSV")
+                    messagebox.showinfo("Exported", f"Saved:\n{fp}")
+                except Exception as e:
+                    messagebox.showerror("Export Failed", str(e))
