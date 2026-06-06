@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from utils import get_dashboard_summary, search_individuals, compute_individual_status, ALERT_HEX, ALERT_BG_HEX, TEST_TYPES
+from utils import get_dashboard_summary, search_individuals, compute_individual_status, ALERT_HEX, ALERT_BG_HEX, TEST_TYPES, to_display_date
 import database as db
 
 
@@ -176,7 +176,7 @@ class DashboardPage(ctk.CTkFrame):
                          font=ctk.CTkFont(size=13)).pack(pady=30)
             return
 
-        headers = ["Svc No", "Name", "Rank", "Unit", "Batch", "Enrolled", "Status", "Alert", ""]
+        headers = ["Svc No", "Name", "Rank", "COY", "Batch", "Enrolled", "Status", "Alert", ""]
         widths = [90, 160, 70, 110, 80, 100, 80, 80, 80]
         hf = ctk.CTkFrame(self.scroll)
         hf.pack(fill="x")
@@ -196,7 +196,7 @@ class DashboardPage(ctk.CTkFrame):
             state_txt = "Completed" if status['monitoring_complete'] else "Active"
             vals = [
                 ind.get('service_number', ''), ind.get('name', ''), ind.get('rank', ''),
-                ind.get('unit', ''), ind.get('batch', ''), ind.get('enrollment_date', ''),
+                ind.get('coy', ''), ind.get('batch', ''), to_display_date(ind.get('enrollment_date', '')),
                 state_txt, alert.upper()
             ]
             for v, w in zip(vals, widths):
