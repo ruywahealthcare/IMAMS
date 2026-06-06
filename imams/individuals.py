@@ -2,7 +2,7 @@ import datetime
 import customtkinter as ctk
 from tkinter import messagebox
 import database as db
-from utils import compute_individual_status, TEST_TYPES, ALERT_HEX, ALERT_BG_HEX
+from utils import compute_individual_status, TEST_TYPES, ALERT_HEX, ALERT_BG_HEX, to_display_date, to_iso_date
 
 try:
     from tkcalendar import Calendar as TkCalendar
@@ -35,7 +35,7 @@ class IndividualsPage(ctk.CTkFrame):
         self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", lambda *_: self._refresh_list())
         ctk.CTkEntry(search_frame, textvariable=self.search_var,
-                     placeholder_text="Search by name / service no / unit...",
+                     placeholder_text="Search by name / service no / coy...",
                      width=400).pack(side="left")
 
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -52,10 +52,10 @@ class IndividualsPage(ctk.CTkFrame):
             individuals = [i for i in individuals if
                            q in i.get('name', '').lower() or
                            q in i.get('service_number', '').lower() or
-                           q in i.get('unit', '').lower() or
+                           q in i.get('coy', '').lower() or
                            q in i.get('batch', '').lower()]
 
-        headers = ["Svc No", "Name", "Rank", "Trade", "Unit", "Batch", "Enrolled", "Alert", "Actions"]
+        headers = ["Svc No", "Name", "Rank", "Trade", "COY", "Batch", "Enrolled", "Alert", "Actions"]
         widths = [90, 160, 80, 80, 110, 80, 100, 80, 120]
         hf = ctk.CTkFrame(self.scroll)
         hf.pack(fill="x", pady=(0, 2))
@@ -81,9 +81,9 @@ class IndividualsPage(ctk.CTkFrame):
                 ind.get('name', ''),
                 ind.get('rank', ''),
                 ind.get('trade', ''),
-                ind.get('unit', ''),
+                ind.get('coy', ''),
                 ind.get('batch', ''),
-                ind.get('enrollment_date', ''),
+                to_display_date(ind.get('enrollment_date', '')),
                 alert.upper(),
             ]
             for v, w in zip(vals, widths):
@@ -140,7 +140,7 @@ class IndividualFormDialog(ctk.CTkToplevel):
             self._populate(individual)
 
     def _open_calendar(self, entry_widget):
-        """Open a calendar popup and set the chosen date on entry_widget."""
+        """Open a calendar popup and set the chosen date (DD-MM-YYYY) on entry_widget."""
         top = ctk.CTkToplevel(self)
         top.title("Pick Date")
         top.grab_set()
@@ -148,7 +148,7 @@ class IndividualFormDialog(ctk.CTkToplevel):
         top.geometry("300x270")
 
         if _HAS_CALENDAR:
-            cal = TkCalendar(top, selectmode='day', date_pattern='yyyy-mm-dd',
+            cal = TkCalendar(top, selectmode='day', date_pattern='dd-mm-yyyy',
                              background='#1A1A2E', foreground='white',
                              headersbackground='#0F3460', headersforeground='#F1C40F',
                              selectbackground='#F1C40F', selectforeground='#0A1628',
@@ -157,7 +157,7 @@ class IndividualFormDialog(ctk.CTkToplevel):
             cal.pack(padx=10, pady=10, fill="both", expand=True)
 
             def _confirm():
-                chosen = cal.get_date()
+                chosen = cal.get_date()  # returns DD-MM-YYYY per date_pattern
                 entry_widget.configure(state="normal")
                 entry_widget.delete(0, "end")
                 entry_widget.insert(0, chosen)
@@ -168,7 +168,7 @@ class IndividualFormDialog(ctk.CTkToplevel):
                           hover_color="#D4AC0D",
                           command=_confirm).pack(pady=(0, 10))
         else:
-            ctk.CTkLabel(top, text="tkcalendar not installed.\nType the date manually in\nYYYY-MM-DD format.",
+            ctk.CTkLabel(top, text="tkcalendar not installed.\nType the date manually in\nDD-MM-YYYY format.",
                          justify="center").pack(pady=30)
             ctk.CTkButton(top, text="OK", command=top.destroy).pack(pady=5)
 
@@ -198,21 +198,20 @@ class IndividualFormDialog(ctk.CTkToplevel):
                 self.fields[key] = var
 
         def date_row(label, key, required=False):
-            lbl = label + (" *" if required else "") + " (YYYY-MM-DD)"
+            lbl = label + (" *" if required else "") + " (DD-MM-YYYY)"
             ctk.CTkLabel(form, text=lbl, anchor="w",
                          font=ctk.CTkFont(size=12)).pack(fill="x", pady=(8, 1))
             wrap = ctk.CTkFrame(form, fg_color="transparent")
             wrap.pack(fill="x", pady=(0, 2))
             entry = ctk.CTkEntry(wrap, height=36, font=ctk.CTkFont(size=13))
             entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
-            ctk.CTkButton(wrap, text="📅", width=40, height=36,
+            ctk.CTkButton(wrap, text="\U0001f4c5", width=40, height=36,
                           command=lambda e=entry: self._open_calendar(e)).pack(side="left")
             self.fields[key] = entry
 
         row("Service Number *", "service_number")
         row("Full Name *", "name")
 
-        # Rank: fixed to AGV, non-editable
         ctk.CTkLabel(form, text="Rank (fixed: AGV)", anchor="w",
                      font=ctk.CTkFont(size=12)).pack(fill="x", pady=(8, 1))
         rank_entry = ctk.CTkEntry(form, height=36, font=ctk.CTkFont(size=13))
@@ -222,7 +221,7 @@ class IndividualFormDialog(ctk.CTkToplevel):
         self.fields["rank"] = rank_entry
 
         row("Trade", "trade")
-        row("Unit", "unit")
+        row("COY", "coy")
         row("Batch", "batch")
         date_row("Date of Birth", "date_of_birth")
         date_row("Enrollment Date", "enrollment_date", required=True)
@@ -235,15 +234,18 @@ class IndividualFormDialog(ctk.CTkToplevel):
                       command=self._save).pack(pady=15)
 
     def _get_field_value(self, key):
-        """Return the current string value for a field, regardless of widget type."""
         w = self.fields[key]
         if isinstance(w, ctk.CTkEntry):
             return w.get().strip()
-        return w.get().strip()  # StringVar
+        return w.get().strip()
+
+    _DATE_KEYS = {'date_of_birth', 'enrollment_date'}
 
     def _populate(self, ind):
         for key, widget in self.fields.items():
             val = str(ind.get(key, '') or '')
+            if key in self._DATE_KEYS:
+                val = to_display_date(val)
             if isinstance(widget, ctk.CTkEntry):
                 was_disabled = str(widget.cget("state")) == "disabled"
                 if was_disabled:
@@ -252,21 +254,27 @@ class IndividualFormDialog(ctk.CTkToplevel):
                 widget.insert(0, val)
                 if was_disabled:
                     widget.configure(state="disabled")
-            else:               # StringVar
+            else:
                 widget.set(val)
 
     def _save(self):
         data = {k: self._get_field_value(k) for k in self.fields}
-        data['rank'] = 'AGV'   # rank is always fixed
+        data['rank'] = 'AGV'
+
         if not data['service_number'] or not data['name'] or not data['enrollment_date']:
             messagebox.showerror("Validation",
                                  "Service Number, Name, and Enrollment Date are required.\n\n"
                                  "Tip: Make sure there are no leading/trailing spaces.")
             return
+
+        if data.get('date_of_birth'):
+            data['date_of_birth'] = to_iso_date(data['date_of_birth'])
+        data['enrollment_date'] = to_iso_date(data['enrollment_date'])
+
         try:
             datetime.datetime.strptime(data['enrollment_date'], "%Y-%m-%d")
         except ValueError:
-            messagebox.showerror("Validation", "Enrollment Date must be YYYY-MM-DD format.\nExample: 2022-06-01")
+            messagebox.showerror("Validation", "Enrollment Date must be DD-MM-YYYY format.\nExample: 01-06-2022")
             return
 
         if self.individual:
@@ -307,19 +315,17 @@ class IndividualProfilePage(ctk.CTkFrame):
         top = ctk.CTkFrame(self, fg_color="transparent")
         top.pack(fill="x", padx=20, pady=(15, 5))
         if self.on_back:
-            ctk.CTkButton(top, text="← Back", width=80,
+            ctk.CTkButton(top, text="\u2190 Back", width=80,
                           command=self.on_back).pack(side="left")
 
-        title_lbl = ctk.CTkLabel(top,
-                                  text=f"{ind['name']}  ({ind['service_number']})",
-                                  font=ctk.CTkFont(size=20, weight="bold"))
-        title_lbl.pack(side="left", padx=20)
+        ctk.CTkLabel(top,
+                     text=f"{ind['name']}  ({ind['service_number']})",
+                     font=ctk.CTkFont(size=20, weight="bold")).pack(side="left", padx=20)
 
-        badge = ctk.CTkLabel(top, text=f"  {alert.upper()}  ",
-                              fg_color=color, corner_radius=8,
-                              font=ctk.CTkFont(size=12, weight="bold"),
-                              text_color="white")
-        badge.pack(side="left")
+        ctk.CTkLabel(top, text=f"  {alert.upper()}  ",
+                     fg_color=color, corner_radius=8,
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color="white").pack(side="left")
 
         self.tab_view = ctk.CTkTabview(self)
         self.tab_view.pack(fill="both", expand=True, padx=20, pady=10)
@@ -343,15 +349,15 @@ class IndividualProfilePage(ctk.CTkFrame):
             ("Name", ind.get('name', '')),
             ("Rank", ind.get('rank', '')),
             ("Trade", ind.get('trade', '')),
-            ("Unit", ind.get('unit', '')),
+            ("COY", ind.get('coy', '')),
             ("Batch", ind.get('batch', '')),
-            ("Date of Birth", ind.get('date_of_birth', '')),
-            ("Enrollment Date", ind.get('enrollment_date', '')),
+            ("Date of Birth", to_display_date(ind.get('date_of_birth', ''))),
+            ("Enrollment Date", to_display_date(ind.get('enrollment_date', ''))),
             ("Blood Group", ind.get('blood_group', '')),
             ("Mobile", ind.get('mobile_number', '')),
             ("Remarks", ind.get('remarks', '')),
             ("Monitoring End",
-             status['monitoring_end_date'].strftime('%d %b %Y') if status['monitoring_end_date'] else ''),
+             status['monitoring_end_date'].strftime('%d-%m-%Y') if status['monitoring_end_date'] else ''),
             ("Status", "Completed" if status['monitoring_complete'] else "Active"),
         ]
 
@@ -370,9 +376,10 @@ class IndividualProfilePage(ctk.CTkFrame):
         tests = db.get_tests_for_individual(ind['id'])
 
         for ay, ay_data in status['ay_status'].items():
-            ctk.CTkLabel(scroll, text=f"Assessment Year {ay}  "
-                                       f"(Window: {ay_data['start_date'].strftime('%d %b %Y')} – "
-                                       f"{ay_data['end_date'].strftime('%d %b %Y')})",
+            ctk.CTkLabel(scroll,
+                         text=f"Assessment Year {ay}  "
+                              f"(Window: {ay_data['start_date'].strftime('%d-%m-%Y')} \u2013 "
+                              f"{ay_data['end_date'].strftime('%d-%m-%Y')})",
                          font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", pady=(12, 4), padx=10)
 
             for tt in TEST_TYPES:
@@ -395,9 +402,10 @@ class IndividualProfilePage(ctk.CTkFrame):
             for t in tests:
                 r = ctk.CTkFrame(scroll, fg_color="transparent")
                 r.pack(fill="x", padx=10, pady=1)
-                ctk.CTkLabel(r, text=f"AY{t['assessment_year']} | {t['test_type']} #{t['attempt_number']} | "
-                                      f"{t['date_conducted']} | {t.get('result', '') or ''} | "
-                                      f"{t.get('remarks', '') or ''}",
+                ctk.CTkLabel(r,
+                             text=f"AY{t['assessment_year']} | {t['test_type']} #{t['attempt_number']} | "
+                                  f"{to_display_date(t['date_conducted'])} | {t.get('result', '') or ''} | "
+                                  f"{t.get('remarks', '') or ''}",
                              anchor="w").pack(side="left")
 
     def _build_medical(self, ind, status):
@@ -411,9 +419,10 @@ class IndividualProfilePage(ctk.CTkFrame):
             row.pack(fill="x", padx=10, pady=4)
             ctk.CTkLabel(row, text=med_type, font=ctk.CTkFont(weight="bold"),
                          width=150, anchor="w").pack(side="left", padx=8, pady=6)
-            ctk.CTkLabel(row, text=f"{'Done' if ms['done'] else 'Pending'}  |  "
-                                    f"Window: {ms['start_date'].strftime('%d %b %Y')} – "
-                                    f"{ms['end_date'].strftime('%d %b %Y')}",
+            ctk.CTkLabel(row,
+                         text=f"{'Done' if ms['done'] else 'Pending'}  |  "
+                              f"Window: {ms['start_date'].strftime('%d-%m-%Y')} \u2013 "
+                              f"{ms['end_date'].strftime('%d-%m-%Y')}",
                          anchor="w").pack(side="left", padx=10)
             ctk.CTkLabel(row, text=ms['alert'].upper(), text_color=c,
                          font=ctk.CTkFont(weight="bold")).pack(side="right", padx=10)
@@ -427,9 +436,10 @@ class IndividualProfilePage(ctk.CTkFrame):
             for r in records:
                 row = ctk.CTkFrame(scroll, fg_color="transparent")
                 row.pack(fill="x", padx=10, pady=1)
-                ctk.CTkLabel(row, text=f"{r['medical_type']} | {r.get('date_conducted', '')} | "
-                                        f"Cat: {r.get('category', '')} | {r.get('result', '')} | "
-                                        f"{r.get('remarks', '')}",
+                ctk.CTkLabel(row,
+                             text=f"{r['medical_type']} | {to_display_date(r.get('date_conducted', ''))} | "
+                                  f"Cat: {r.get('category', '')} | {r.get('result', '')} | "
+                                  f"{r.get('remarks', '')}",
                              anchor="w").pack(side="left")
 
     def _build_counselling(self, ind, status):
@@ -443,9 +453,10 @@ class IndividualProfilePage(ctk.CTkFrame):
             row.pack(fill="x", padx=10, pady=4)
             ctk.CTkLabel(row, text=f"Counselling {num}",
                          font=ctk.CTkFont(weight="bold"), width=150, anchor="w").pack(side="left", padx=8, pady=6)
-            ctk.CTkLabel(row, text=f"{'Done' if cs['done'] else 'Pending'}  |  "
-                                    f"Window: {cs['start_date'].strftime('%d %b %Y')} – "
-                                    f"{cs['end_date'].strftime('%d %b %Y')}").pack(side="left", padx=10)
+            ctk.CTkLabel(row,
+                         text=f"{'Done' if cs['done'] else 'Pending'}  |  "
+                              f"Window: {cs['start_date'].strftime('%d-%m-%Y')} \u2013 "
+                              f"{cs['end_date'].strftime('%d-%m-%Y')}").pack(side="left", padx=10)
             ctk.CTkLabel(row, text=cs['alert'].upper(), text_color=c,
                          font=ctk.CTkFont(weight="bold")).pack(side="right", padx=10)
 
@@ -458,9 +469,10 @@ class IndividualProfilePage(ctk.CTkFrame):
             for r in records:
                 row = ctk.CTkFrame(scroll, fg_color="transparent")
                 row.pack(fill="x", padx=10, pady=1)
-                ctk.CTkLabel(row, text=f"C{r['counselling_number']} | {r.get('date_conducted', '')} | "
-                                        f"By: {r.get('counsellor_name', '')} | {r.get('status', '')} | "
-                                        f"{r.get('remarks', '')}",
+                ctk.CTkLabel(row,
+                             text=f"C{r['counselling_number']} | {to_display_date(r.get('date_conducted', ''))} | "
+                                  f"By: {r.get('counsellor_name', '')} | {r.get('status', '')} | "
+                                  f"{r.get('remarks', '')}",
                              anchor="w").pack(side="left")
 
     def _build_timeline(self, ind, status):
@@ -484,10 +496,9 @@ class IndividualProfilePage(ctk.CTkFrame):
 
         events.sort(key=lambda x: x[0] or '0000')
 
-        for date, label, color in events:
+        for iso_date, label, color in events:
             row = ctk.CTkFrame(scroll, fg_color="transparent")
             row.pack(fill="x", padx=15, pady=3)
-            dot = ctk.CTkLabel(row, text="●", text_color=color,
-                               font=ctk.CTkFont(size=16))
-            dot.pack(side="left", padx=(0, 8))
-            ctk.CTkLabel(row, text=f"{date}  |  {label}", anchor="w").pack(side="left")
+            ctk.CTkLabel(row, text="\u25cf", text_color=color,
+                         font=ctk.CTkFont(size=16)).pack(side="left", padx=(0, 8))
+            ctk.CTkLabel(row, text=f"{to_display_date(iso_date)}  |  {label}", anchor="w").pack(side="left")
